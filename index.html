@@ -217,7 +217,7 @@ table.cmp td.best{color:var(--ok);font-weight:700}
 .bhead h2{margin:0;font-size:24px}
 .bcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
 .bcard h3{margin:0 0 10px;font-size:17px}
-.bform{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
+.bform{display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:8px}
 .bform input,.bform select{width:100%;font:inherit;font-size:16px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--btn);color:var(--ink)}
 .boardview textarea{width:100%;margin-top:8px;font:inherit;font-size:16px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--btn);color:var(--ink);min-height:64px;resize:vertical}
 .bfilter{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
@@ -238,7 +238,18 @@ table.cmp td.best{color:var(--ok);font-weight:700}
 .lcard .ac button{font-size:13px;padding:6px 10px}
 .lcard .ac .like.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .lcard .ac .rp{margin-left:auto;color:var(--muted);border-color:transparent;background:none}
-@media (max-width:640px){ .bform{grid-template-columns:1fr 1fr} .bform input:first-child{grid-column:1/-1} .topright .helpbtn{padding:6px 10px;font-size:13.5px} }
+.pwbox{display:flex;gap:6px;margin-top:8px}
+.adminbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:14px}
+.adminbar[hidden]{display:none}
+.adminbar button{margin-left:auto;font-size:13px;padding:4px 10px}
+.adminfoot{text-align:center;margin-top:30px}
+.linkbtn{border:0;background:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer}
+.lcard.flag{border-color:var(--bad);box-shadow:inset 0 3px 0 var(--bad)}
+.lcard .ac .adm{background:var(--bad);border-color:var(--bad);color:#fff}
+.pwbox[hidden]{display:none}
+.pwbox input{flex:1;min-width:0;font:inherit;font-size:16px;padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:var(--btn);color:var(--ink)}
+.pwbox button{font-size:13px;padding:6px 10px}
+@media (max-width:640px){ .bform{grid-template-columns:1fr 1fr} .bform input:first-child{grid-column:1/-1} .bform #pPw{grid-column:1/-1} .topright .helpbtn{padding:6px 10px;font-size:13.5px} }
 </style>
 </head>
 <body>
@@ -378,10 +389,11 @@ table.cmp td.best{color:var(--ok);font-weight:700}
           <input type="text" id="pTitle" maxlength="30" placeholder="제목 (예: 6평 원룸, 책상을 창가에)">
           <select id="pKind"></select>
           <input type="text" id="pNick" maxlength="12" placeholder="닉네임 (안 쓰면 익명)">
+          <input type="password" id="pPw" maxlength="20" placeholder="비밀번호 (삭제할 때 필요)" autocomplete="new-password">
         </div>
         <textarea id="pDesc" maxlength="200" placeholder="설명 (선택) · 예: 침대 옆에 행거 두니까 동선이 편해요"></textarea>
         <div class="row" style="justify-content:space-between;margin-top:8px"><span class="hint" id="pInfo" style="margin:0"></span><button class="primary" id="pPost">올리기</button></div>
-        <p class="hint">방 크기·가구 위치만 올라가요. 주소 같은 개인정보는 제목이나 설명에 쓰지 말아주세요.</p>
+        <p class="hint">비밀번호는 글을 지울 때 필요해요 (4자 이상, 잊어버리면 지울 수 없어요). 방 크기·가구 위치만 올라가요. 주소 같은 개인정보는 쓰지 말아주세요.</p>
       </div>
       <div class="bfilter">
         <div class="bchips" id="bKinds"></div>
@@ -390,8 +402,17 @@ table.cmp td.best{color:var(--ok);font-weight:700}
           <select id="bSort"><option value="new">최신순</option><option value="like">👍 많은 순</option><option value="score">점수 높은 순</option></select>
         </div>
       </div>
+      <div class="adminbar" id="adminBar" hidden>🛡 <b>관리자 모드</b> · 모든 글을 지울 수 있고, 신고로 숨겨진 글도 보여요 <button id="adminOut">나가기</button></div>
       <p class="hint" id="bMode"></p>
       <div class="blist" id="bList"></div>
+      <div class="adminfoot">
+        <button class="linkbtn" id="adminOpen">🔐 관리자</button>
+        <div class="pwbox" id="adminBox" hidden style="max-width:420px;margin:8px auto 0">
+          <input type="password" id="adminPw" maxlength="40" placeholder="관리자 비밀번호" autocomplete="off">
+          <button class="primary" id="adminLogin">들어가기</button>
+          <button id="adminSetup" title="처음 한 번만">처음 설정</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1479,7 +1500,8 @@ const firebaseConfig = {
   appId: "1:420094328091:web:a4904f6e3c38e826ade7be"
 };
 const KINDS=['원룸','기숙사','오피스텔','투룸·작은방','기타'];
-let db=null, fsx=null, posts=[], boardRemote=false, bKind='all', myUid=null;
+let db=null, fsx=null, posts=[], boardRemote=false, bKind='all', myUid=null, adminH=null;
+try{ adminH=sessionStorage.getItem('salmanhan-admin'); }catch(e){}
 let myPosts=[], myLikes=[], myReports=[];
 try{ myPosts=JSON.parse(localStorage.getItem('salmanhan-myposts')||'[]'); myLikes=JSON.parse(localStorage.getItem('salmanhan-likes')||'[]'); myReports=JSON.parse(localStorage.getItem('salmanhan-reports')||'[]'); }catch(e){}
 const lsSet=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
@@ -1507,13 +1529,15 @@ function renderBoard(){
   $('bKinds').innerHTML=[['all','전체'],...KINDS.map(k=>[k,k])].map(([k,n])=>`<button class="${bKind===k?'on':''}" data-k="${k}">${n}</button>`).join('');
   document.querySelectorAll('#bKinds button').forEach(b=>b.onclick=()=>{ bKind=b.dataset.k; renderBoard(); });
   const size=$('bSize').value, sort=$('bSort').value;
-  let list=posts.filter(p=>p.st && !myReports.includes(p.id) && (p.reports||0)<3)
+  $('adminBar').hidden=!adminH;
+  let list=posts.filter(p=>p.st && (adminH || (!myReports.includes(p.id) && (p.reports||0)<3)))
     .filter(p=>bKind==='all'||p.kind===bKind)
     .filter(p=>{ const py=pyeong(p.st); return size==='all' || (size==='s'&&py<=5) || (size==='m'&&py>5&&py<=7) || (size==='l'&&py>7); });
   list.sort((a,b)=> sort==='like' ? (b.likes||0)-(a.likes||0)||b.t-a.t : sort==='score' ? b.score-a.score||b.t-a.t : b.t-a.t);
   $('bList').innerHTML = list.length ? list.map(p=>{
     const c=p.score>=90?'var(--ok)':p.score>=70?'var(--tight)':'var(--bad)', liked=myLikes.includes(p.id), mine=boardRemote ? (!!myUid && p.uid===myUid) : myPosts.includes(p.id);
-    return `<div class="lcard">
+    const flagged=(p.reports||0)>=3;
+    return `<div class="lcard ${adminH&&flagged?'flag':''}">
       <div class="th">${miniSVG(p.st)}</div>
       <div class="bd">
         <div class="tt">${escH(p.title)}</div>
@@ -1524,7 +1548,12 @@ function renderBoard(){
           <button class="like ${liked?'on':''}" data-like="${p.id}">👍 ${p.likes||0}</button>
           <button class="primary" data-take="${p.id}">📥 내 안으로 가져오기</button>
           <button data-link="${p.id}">🔗</button>
-          ${mine?`<button class="rp" data-del="${p.id}">내 글 삭제</button>`:`<button class="rp" data-rep="${p.id}" title="신고">🚩</button>`}
+          ${adminH?`<button class="adm" data-adel="${p.id}">🛡 삭제</button>${p.reports?`<button data-unflag="${p.id}" title="신고 수 0으로">🚩${p.reports} 초기화</button>`:''}`:''}
+          ${mine?`<button class="rp" data-del="${p.id}">내 글 삭제</button>`:`<button class="rp" data-pwdel="${p.id}" title="비밀번호로 삭제">🗑</button><button class="rp" style="margin-left:0" data-rep="${p.id}" title="신고">🚩</button>`}
+        </div>
+        <div class="pwbox" id="pw-${p.id}" hidden>
+          <input type="password" maxlength="20" placeholder="글 비밀번호" autocomplete="off">
+          <button class="primary" data-pwok="${p.id}">삭제</button><button data-pwno="${p.id}">취소</button>
         </div>
       </div></div>`; }).join('')
     : `<p class="hint" style="grid-column:1/-1;text-align:center;padding:30px 0">${posts.length?'조건에 맞는 배치가 없어요':'아직 올라온 배치가 없어요. 첫 배치를 올려보세요! 📤'}</p>`;
@@ -1533,6 +1562,12 @@ function renderBoard(){
   document.querySelectorAll('[data-link]').forEach(b=>b.onclick=()=>{ const p=find(b.dataset.link); if(p) shareState(p.st, p.title); });
   document.querySelectorAll('[data-like]').forEach(b=>b.onclick=()=>toggleLike(b.dataset.like));
   document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deletePost(b.dataset.del));
+  document.querySelectorAll('[data-pwdel]').forEach(b=>b.onclick=()=>{ const box=$('pw-'+b.dataset.pwdel); box.hidden=!box.hidden; if(!box.hidden) box.querySelector('input').focus(); });
+  document.querySelectorAll('[data-adel]').forEach(b=>b.onclick=()=>adminDelete(b.dataset.adel));
+  document.querySelectorAll('[data-unflag]').forEach(b=>b.onclick=()=>{ fsx.updateDoc(fsx.doc(db,'layouts',b.dataset.unflag),{reports:0}).then(()=>toast('신고 수를 초기화했어요')).catch(e=>{console.warn(e);toast('바꾸지 못했어요');}); });
+  document.querySelectorAll('[data-pwno]').forEach(b=>b.onclick=()=>{ $('pw-'+b.dataset.pwno).hidden=true; });
+  document.querySelectorAll('[data-pwok]').forEach(b=>b.onclick=()=>deleteWithPw(b.dataset.pwok, $('pw-'+b.dataset.pwok).querySelector('input').value));
+  document.querySelectorAll('.pwbox input').forEach(i=>i.onkeydown=e=>{ if(e.key==='Enter') i.parentElement.querySelector('[data-pwok]').click(); });
   document.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>reportPost(b.dataset.rep));
 }
 function openBoard(){
@@ -1553,18 +1588,24 @@ async function addPost(){
   if(title.length<2){ $('pTitle').focus(); toast('제목을 2글자 이상 써주세요'); return; }
   if(Date.now()-lastPost<10000){ toast('잠깐만요, 10초 뒤에 다시 올릴 수 있어요'); return; }
   const st=sanitizeState(JSON.parse(JSON.stringify(state)));
+  const pw=$('pPw').value;
+  if(pw.length<4){ $('pPw').focus(); toast('비밀번호를 4자 이상 정해주세요 (글 지울 때 필요해요)'); return; }
   const post={title:title.slice(0,30), kind:$('pKind').value, nick:$('pNick').value.trim().slice(0,12), desc:$('pDesc').value.trim().slice(0,200), score:scoreOf(analyze()), likes:0, reports:0};
   $('pPost').disabled=true; lastPost=Date.now();
   try{
     if(boardRemote){
       if(!myUid){ toast('로그인 준비 중이에요. 잠시 뒤 다시 올려주세요'); return; }
-      const ref=await fsx.addDoc(fsx.collection(db,'layouts'), {...post, uid:myUid, data:JSON.stringify(st), createdAt:fsx.serverTimestamp()});
+      const ref=fsx.doc(fsx.collection(db,'layouts'));
+      const batch=fsx.writeBatch(db);
+      batch.set(ref, {...post, uid:myUid, data:JSON.stringify(st), createdAt:fsx.serverTimestamp()});
+      batch.set(fsx.doc(db,'layoutKeys',ref.id), {h: await pwHash(ref.id, pw)});   // 아무도 읽을 수 없는 칸
+      await batch.commit();
       myPosts.push(ref.id);
     } else {
-      const id='l'+Date.now(); posts.unshift({...post, id, st, t:Date.now()}); myPosts.push(id); saveLocalBoard();
+      const id='l'+Date.now(); posts.unshift({...post, id, st, t:Date.now(), h: await pwHash(id, pw)}); myPosts.push(id); saveLocalBoard();
     }
     lsSet('salmanhan-myposts',myPosts); try{ localStorage.setItem('salmanhan-nick',post.nick); }catch(e){}
-    $('pDesc').value=''; toast('배치를 올렸어요!'); renderBoard();
+    $('pDesc').value=''; $('pPw').value=''; toast('배치를 올렸어요! 비밀번호는 기억해두세요'); renderBoard();
   }catch(e){ console.warn(e); toast('올리지 못했어요. 잠시 뒤 다시 해주세요'); }
   finally{ setTimeout(()=>$('pPost').disabled=false, 3000); }
 }
@@ -1589,6 +1630,63 @@ function deletePost(id){
   else { posts=posts.filter(p=>p.id!==id); saveLocalBoard(); }
   myPosts=myPosts.filter(x=>x!==id); lsSet('salmanhan-myposts',myPosts); renderBoard(); toast('삭제했어요');
 }
+async function pwHash(id, pw){
+  const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`salmanhan-bang|${id}|${pw}`));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function deleteWithPw(id, pw){
+  if(!pw){ toast('비밀번호를 입력해주세요'); return; }
+  const h=await pwHash(id, pw);
+  try{
+    if(boardRemote){
+      if(!myUid){ toast('잠시 뒤 다시 해주세요'); return; }
+      // 서버 규칙이 비밀번호를 확인해요: 맞을 때만 '삭제 요청'이 저장되고, 그때만 글이 지워져요
+      const batch=fsx.writeBatch(db);
+      batch.set(fsx.doc(db,'delReq',id), {h, ok:true});
+      batch.delete(fsx.doc(db,'layouts',id));
+      await batch.commit();
+    } else {
+      const p=posts.find(x=>x.id===id); if(!p || p.h!==h) throw {code:'permission-denied'};
+      posts=posts.filter(x=>x.id!==id); saveLocalBoard();
+    }
+    myPosts=myPosts.filter(x=>x!==id); lsSet('salmanhan-myposts',myPosts); renderBoard(); toast('삭제했어요');
+  }catch(e){
+    console.warn(e);
+    toast(e && e.code==='permission-denied' ? '비밀번호가 맞지 않아요' : '삭제하지 못했어요. 잠시 뒤 다시 해주세요');
+  }
+}
+async function adminHash(pw){ return pwHash('admin', pw); }
+async function adminDelete(id){
+  if(!adminH || !boardRemote) return;
+  try{
+    const batch=fsx.writeBatch(db);
+    batch.set(fsx.doc(db,'delReq',id), {h:adminH, ok:true});
+    batch.delete(fsx.doc(db,'layouts',id));
+    await batch.commit(); toast('관리자 권한으로 삭제했어요');
+  }catch(e){ console.warn(e); toast(e&&e.code==='permission-denied'?'관리자 비밀번호가 바뀌었거나 맞지 않아요':'삭제하지 못했어요'); }
+}
+$('adminOpen').onclick=()=>{ const b=$('adminBox'); b.hidden=!b.hidden; if(!b.hidden) $('adminPw').focus(); };
+$('adminPw').onkeydown=e=>{ if(e.key==='Enter') $('adminLogin').click(); };
+$('adminOut').onclick=()=>{ adminH=null; try{ sessionStorage.removeItem('salmanhan-admin'); }catch(e){} renderBoard(); toast('관리자 모드에서 나왔어요'); };
+// 관리자 비밀번호 확인: 서버 규칙이 맞을 때만 저장을 허락해요
+$('adminLogin').onclick=async()=>{
+  const pw=$('adminPw').value; if(!pw) return;
+  if(!boardRemote || !myUid){ toast('모두와 공유되는 게시판에서만 쓸 수 있어요'); return; }
+  const h=await adminHash(pw);
+  try{ await fsx.setDoc(fsx.doc(db,'adminCheck',myUid), {h});
+    adminH=h; try{ sessionStorage.setItem('salmanhan-admin',h); }catch(e){}
+    $('adminPw').value=''; $('adminBox').hidden=true; renderBoard(); toast('관리자 모드로 들어왔어요');
+  }catch(e){ console.warn(e); toast('관리자 비밀번호가 맞지 않아요'); }
+};
+// 처음 한 번만: 관리자 비밀번호 정하기 (이미 정해져 있으면 서버가 거절해요)
+$('adminSetup').onclick=async()=>{
+  const pw=$('adminPw').value;
+  if(pw.length<8){ toast('관리자 비밀번호는 8자 이상으로 정해주세요'); return; }
+  if(!boardRemote || !myUid){ toast('모두와 공유되는 게시판에서만 쓸 수 있어요'); return; }
+  try{ await fsx.setDoc(fsx.doc(db,'config','admin'), {h: await adminHash(pw)});
+    toast('관리자 비밀번호를 정했어요. 이제 [들어가기]를 누르세요');
+  }catch(e){ console.warn(e); toast('이미 관리자 비밀번호가 정해져 있어요'); }
+};
 function reportPost(id){
   myReports.push(id); lsSet('salmanhan-reports',myReports);
   if(boardRemote) fsx.updateDoc(fsx.doc(db,'layouts',id),{reports:fsx.increment(1)}).catch(console.warn);
